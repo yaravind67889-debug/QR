@@ -1,0 +1,2445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QRForge Pro — Next-Gen QR Code Platform</title>
+<meta name="description" content="QRForge Pro: Generate, customize, save and share QR codes with cloud storage and real-time preview.">
+<meta property="og:title" content="QRForge Pro">
+<meta property="og:description" content="The most powerful QR code generation platform.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ===== CSS VARIABLES ===== */
+:root {
+  --bg-void: #020409;
+  --bg-deep: #060b14;
+  --bg-surface: #0a1628;
+  --bg-glass: rgba(10,22,40,0.7);
+  --bg-card: rgba(15,30,55,0.6);
+  --neon-blue: #00d4ff;
+  --neon-cyan: #00ffee;
+  --neon-purple: #b44fff;
+  --neon-pink: #ff44aa;
+  --neon-green: #00ff88;
+  --accent: #00d4ff;
+  --accent2: #b44fff;
+  --text-primary: #e8f4ff;
+  --text-secondary: #7a9cc7;
+  --text-dim: #3d5a80;
+  --border: rgba(0,212,255,0.15);
+  --border-bright: rgba(0,212,255,0.4);
+  --shadow-neon: 0 0 20px rgba(0,212,255,0.3), 0 0 60px rgba(0,212,255,0.1);
+  --shadow-purple: 0 0 20px rgba(180,79,255,0.3), 0 0 60px rgba(180,79,255,0.1);
+  --radius: 12px;
+  --radius-lg: 20px;
+  --sidebar-w: 260px;
+  --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ===== ANIMATED BACKGROUND ===== */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bg-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  animation: orbFloat 20s ease-in-out infinite;
+}
+.orb-1 { width: 600px; height: 600px; background: var(--neon-blue); top: -200px; left: -200px; animation-duration: 25s; }
+.orb-2 { width: 500px; height: 500px; background: var(--neon-purple); bottom: -150px; right: -100px; animation-duration: 30s; animation-delay: -10s; }
+.orb-3 { width: 400px; height: 400px; background: var(--neon-cyan); top: 40%; left: 50%; animation-duration: 20s; animation-delay: -5s; }
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(30px,-30px) scale(1.05); }
+  66% { transform: translate(-20px,20px) scale(0.95); }
+}
+
+/* Grid overlay */
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 3px; opacity: 0.5; }
+
+/* ===== AUTH SCREEN ===== */
+#auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.auth-logo .logo-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: 'Orbitron', monospace;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text-primary);
+  text-decoration: none;
+  letter-spacing: 2px;
+}
+.auth-logo .logo-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: var(--shadow-neon);
+  animation: iconPulse 3s ease-in-out infinite;
+}
+@keyframes iconPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.3), 0 0 40px rgba(0,212,255,0.1); }
+  50% { box-shadow: 0 0 30px rgba(0,212,255,0.6), 0 0 80px rgba(0,212,255,0.2); }
+}
+.logo-pro-badge {
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+  margin-left: 4px;
+  vertical-align: super;
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  position: relative;
+  overflow: hidden;
+}
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+  opacity: 0.6;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 32px;
+}
+.auth-tab {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.auth-tab.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(180,79,255,0.2));
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-bright);
+}
+
+.form-group {
+  margin-bottom: 20px;
+  position: relative;
+}
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.form-input {
+  width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  transition: var(--transition);
+  outline: none;
+}
+.form-input:focus {
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.1), 0 0 20px rgba(0,212,255,0.1);
+}
+.form-input::placeholder { color: var(--text-dim); }
+.input-with-icon { position: relative; }
+.input-with-icon .form-input { padding-left: 44px; }
+.input-with-icon .input-icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 16px;
+  transition: var(--transition);
+}
+.input-with-icon .form-input:focus ~ .input-icon,
+.input-with-icon:focus-within .input-icon { color: var(--neon-blue); }
+.toggle-password {
+  position: absolute;
+  right: 14px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  color: var(--text-dim); cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+}
+.toggle-password:hover { color: var(--neon-blue); }
+
+.form-error {
+  font-size: 12px;
+  color: #ff6b6b;
+  margin-top: 6px;
+  display: none;
+}
+.form-error.show { display: block; }
+
+.forgot-link {
+  display: block;
+  text-align: right;
+  font-size: 13px;
+  color: var(--neon-blue);
+  text-decoration: none;
+  margin-top: -12px;
+  margin-bottom: 20px;
+  opacity: 0.8;
+  transition: var(--transition);
+}
+.forgot-link:hover { opacity: 1; }
+
+/* ===== BUTTONS ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: var(--transition);
+}
+.btn:hover::after { opacity: 1; }
+.btn:active { transform: scale(0.98); }
+
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(0,212,255,0.5);
+}
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.btn-ghost:hover { border-color: var(--border-bright); color: var(--text-primary); }
+.btn-danger {
+  background: rgba(255,80,80,0.15);
+  border: 1px solid rgba(255,80,80,0.3);
+  color: #ff6b6b;
+}
+.btn-danger:hover { background: rgba(255,80,80,0.25); }
+.btn-sm { padding: 8px 16px; font-size: 12px; }
+.btn-icon {
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid var(--border);
+  color: var(--neon-blue);
+  font-size: 14px;
+}
+.btn-icon:hover { background: rgba(0,212,255,0.2); }
+
+.btn .spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+.btn.loading .spinner { display: block; }
+.btn.loading .btn-text { display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== APP LAYOUT ===== */
+#app-screen {
+  display: none;
+  min-height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: rgba(6,11,20,0.95);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+  overflow: hidden;
+}
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--neon-blue), transparent);
+  opacity: 0.2;
+}
+
+.sidebar-header {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+  text-decoration: none;
+}
+.sidebar-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-neon);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  padding: 0 8px;
+  margin: 16px 0 8px;
+}
+.nav-section-label:first-child { margin-top: 0; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: var(--transition);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  position: relative;
+  margin-bottom: 2px;
+}
+.nav-item i { width: 18px; text-align: center; font-size: 15px; flex-shrink: 0; }
+.nav-item:hover {
+  background: rgba(0,212,255,0.06);
+  color: var(--text-primary);
+}
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(180,79,255,0.08));
+  color: var(--neon-blue);
+  border: 1px solid rgba(0,212,255,0.2);
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 20%; bottom: 20%;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--neon-blue), var(--neon-purple));
+  border-radius: 2px;
+}
+
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--border);
+}
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+}
+.user-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-role {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+}
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.logout-btn:hover { color: #ff6b6b; }
+
+/* MOBILE SIDEBAR TOGGLE */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 16px; left: 16px;
+  z-index: 60;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text-primary);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* MAIN CONTENT */
+.main-content {
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.page {
+  display: none;
+  padding: 32px;
+  min-height: 100vh;
+  animation: pageIn 0.3s ease;
+}
+.page.active { display: block; }
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.page-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+  line-height: 1.3;
+}
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent);
+}
+.card-body { padding: 28px; }
+.card-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.card-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-primary);
+}
+
+/* ===== STATS GRID ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+}
+.stat-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card:nth-child(1)::before { background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan)); }
+.stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); }
+.stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan)); }
+.stat-card:nth-child(4)::before { background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); }
+.stat-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+.stat-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ===== QR GENERATOR ===== */
+.generator-grid {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1100px) { .generator-grid { grid-template-columns: 1fr; } }
+
+.qr-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.qr-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+}
+.qr-type-btn i { font-size: 20px; }
+.qr-type-btn:hover { border-color: var(--border-bright); color: var(--text-primary); }
+.qr-type-btn.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(180,79,255,0.1));
+  border-color: var(--neon-blue);
+  color: var(--neon-blue);
+}
+
+.input-fields { margin-bottom: 24px; }
+.select-input, textarea.form-input {
+  width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  outline: none;
+  transition: var(--transition);
+  -webkit-appearance: none;
+}
+.select-input:focus, textarea.form-input:focus {
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+}
+.select-input option { background: var(--bg-surface); }
+textarea.form-input { resize: vertical; min-height: 80px; }
+
+/* Customization */
+.customization-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.color-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  transition: var(--transition);
+}
+.color-input-wrap:focus-within { border-color: var(--neon-blue); }
+input[type="color"] {
+  width: 28px; height: 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+}
+.color-hex {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+.range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,212,255,0.5);
+}
+.range-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  color: var(--neon-blue);
+  min-width: 42px;
+  text-align: right;
+}
+
+/* QR Preview */
+.qr-preview-card {
+  position: sticky;
+  top: 24px;
+}
+.qr-preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+  padding: 32px;
+  background: rgba(0,0,0,0.3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+.qr-placeholder i { font-size: 48px; opacity: 0.3; }
+#qr-output { display: none; }
+#qr-output canvas, #qr-output img { border-radius: 8px; max-width: 100%; }
+#qr-output-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.download-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.save-form { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 4px; }
+.save-form-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ===== QR HISTORY / LIBRARY ===== */
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.search-input-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 200px;
+}
+.search-input-wrap i {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.search-input {
+  width: 100%;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px 12px 42px;
+  color: var(--text-primary);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  outline: none;
+  transition: var(--transition);
+}
+.search-input:focus { border-color: var(--neon-blue); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.qr-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: var(--transition);
+  position: relative;
+}
+.qr-item:hover {
+  border-color: var(--border-bright);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+}
+.qr-item-preview {
+  background: rgba(0,0,0,0.4);
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border-bottom: 1px solid var(--border);
+}
+.qr-item-preview img { max-width: 120px; max-height: 120px; border-radius: 6px; }
+.qr-item-body { padding: 16px; }
+.qr-item-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qr-item-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qr-item-type {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.2);
+  color: var(--neon-blue);
+  margin-bottom: 12px;
+}
+.qr-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  grid-column: 1 / -1;
+}
+.empty-state i { font-size: 56px; margin-bottom: 16px; opacity: 0.3; }
+.empty-state h3 { font-size: 18px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+.empty-state p { font-size: 14px; max-width: 300px; }
+
+/* ===== TOAST ===== */
+.toast-container {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: rgba(10,22,40,0.95);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  backdrop-filter: blur(16px);
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 280px;
+  max-width: 380px;
+  pointer-events: all;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(20px); } }
+.toast-success { border-left: 3px solid var(--neon-green); }
+.toast-success i { color: var(--neon-green); }
+.toast-error { border-left: 3px solid #ff6b6b; }
+.toast-error i { color: #ff6b6b; }
+.toast-info { border-left: 3px solid var(--neon-blue); }
+.toast-info i { color: var(--neon-blue); }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition);
+}
+.modal-overlay.open { opacity: 1; visibility: visible; }
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  max-width: 440px;
+  width: 100%;
+  position: relative;
+  transform: scale(0.9);
+  transition: transform 0.3s ease;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+}
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+.modal-close {
+  position: absolute;
+  top: 20px; right: 20px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px; height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+}
+.modal-close:hover { color: var(--text-primary); border-color: var(--border-bright); }
+
+/* ===== PROFILE PAGE ===== */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+.profile-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  padding: 32px;
+}
+.profile-avatar-large {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: var(--shadow-neon);
+  border: 3px solid rgba(0,212,255,0.3);
+}
+.profile-username {
+  font-family: 'Orbitron', monospace;
+  font-size: 20px;
+  font-weight: 700;
+}
+.profile-email {
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: 'Space Mono', monospace;
+}
+.profile-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(180,79,255,0.15));
+  border: 1px solid var(--border-bright);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--neon-blue);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ===== OVERFLOW BADGE COUNT ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 6px;
+  margin-left: auto;
+}
+
+/* ===== FORM ROW ===== */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+/* ===== DIVIDER ===== */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 24px 0;
+}
+
+/* ===== LOADING OVERLAY ===== */
+.page-loader {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-void);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+.page-loader-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.loader-bar {
+  width: 200px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loader-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+  border-radius: 2px;
+  animation: loaderFill 1.5s ease forwards;
+}
+@keyframes loaderFill {
+  0% { width: 0%; }
+  70% { width: 80%; }
+  100% { width: 100%; }
+}
+
+/* ===== LOGO UPLOAD ===== */
+.logo-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+.logo-upload-area:hover { border-color: var(--border-bright); }
+.logo-upload-area.drag-over { border-color: var(--neon-blue); background: rgba(0,212,255,0.05); }
+.logo-upload-area input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.logo-preview { max-width: 60px; max-height: 60px; border-radius: 6px; }
+
+/* ===== TEMPLATE GRID ===== */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.template-item {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.template-item:hover { border-color: var(--border-bright); }
+.template-item.active { border-color: var(--neon-blue); background: rgba(0,212,255,0.05); }
+.template-item i { font-size: 24px; margin-bottom: 8px; display: block; }
+.template-item span { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  .sidebar { transform: translateX(-260px); width: 260px; }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .page { padding: 20px 16px; padding-top: 70px; }
+  .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+  .generator-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .customization-grid { grid-template-columns: 1fr; }
+  .download-btns { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .qr-type-grid { grid-template-columns: repeat(3, 1fr); }
+  .auth-card { padding: 28px 20px; }
+  .download-btns { grid-template-columns: 1fr; }
+}
+
+/* ===== SECTION LABELS ===== */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ===== TOGGLE ===== */
+.toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  left: 3px; top: 3px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: var(--transition);
+}
+.toggle input:checked + .toggle-slider { background: rgba(0,212,255,0.2); border-color: var(--neon-blue); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--neon-blue); }
+.toggle-label { font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+
+/* ===== SIDEBAR OVERLAY (mobile) ===== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 45;
+}
+.sidebar-overlay.show { display: block; }
+
+/* ===== GRADIENT TEXT ===== */
+.gradient-text {
+  background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== GLOW TEXT ===== */
+.glow { text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+</style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<div class="grid-overlay"></div>
+
+<!-- Page loader -->
+<div class="page-loader" id="page-loader">
+  <div class="page-loader-logo">QRFORGE PRO</div>
+  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="auth-screen">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <a href="#" class="logo-mark">
+        <div class="logo-icon"><i class="fas fa-qrcode"></i></div>
+        QRForge<span class="logo-pro-badge">PRO</span>
+      </a>
+    </div>
+
+    <div class="auth-card" id="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+      </div>
+
+      <!-- Sign In -->
+      <div id="signin-form">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="input-with-icon">
+            <input type="email" id="signin-email" class="form-input" placeholder="you@example.com">
+            <i class="fas fa-envelope input-icon"></i>
+          </div>
+          <div class="form-error" id="signin-email-err"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-with-icon">
+            <input type="password" id="signin-password" class="form-input" placeholder="••••••••">
+            <i class="fas fa-lock input-icon"></i>
+            <button type="button" class="toggle-password" onclick="togglePw('signin-password', this)"><i class="fas fa-eye"></i></button>
+          </div>
+          <div class="form-error" id="signin-pass-err"></div>
+        </div>
+        <a href="#" class="forgot-link" onclick="showForgotModal(); return false;">Forgot password?</a>
+        <button class="btn btn-primary" id="signin-btn" onclick="handleSignIn()">
+          <span class="btn-text"><i class="fas fa-bolt"></i> Sign In</span>
+          <div class="spinner"></div>
+        </button>
+      </div>
+
+      <!-- Sign Up -->
+      <div id="signup-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <div class="input-with-icon">
+            <input type="text" id="signup-name" class="form-input" placeholder="John Doe">
+            <i class="fas fa-user input-icon"></i>
+          </div>
+          <div class="form-error" id="signup-name-err"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <div class="input-with-icon">
+            <input type="email" id="signup-email" class="form-input" placeholder="you@example.com">
+            <i class="fas fa-envelope input-icon"></i>
+          </div>
+          <div class="form-error" id="signup-email-err"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div class="input-with-icon">
+            <input type="password" id="signup-password" class="form-input" placeholder="Min. 6 characters">
+            <i class="fas fa-lock input-icon"></i>
+            <button type="button" class="toggle-password" onclick="togglePw('signup-password', this)"><i class="fas fa-eye"></i></button>
+          </div>
+          <div class="form-error" id="signup-pass-err"></div>
+        </div>
+        <button class="btn btn-primary" id="signup-btn" onclick="handleSignUp()">
+          <span class="btn-text"><i class="fas fa-user-plus"></i> Create Account</span>
+          <div class="spinner"></div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP SCREEN ===== -->
+<div id="app-screen">
+  <!-- Mobile sidebar toggle -->
+  <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="#" class="sidebar-logo">
+        <div class="sidebar-logo-icon"><i class="fas fa-qrcode"></i></div>
+        QRForge
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <button class="nav-item active" onclick="navigateTo('dashboard')"><i class="fas fa-th-large"></i> Dashboard</button>
+      <button class="nav-item" onclick="navigateTo('generator')"><i class="fas fa-magic"></i> Generate QR <span class="badge">NEW</span></button>
+      <button class="nav-item" onclick="navigateTo('library')"><i class="fas fa-folder-open"></i> My Library</button>
+
+      <div class="nav-section-label">Account</div>
+      <button class="nav-item" onclick="navigateTo('profile')"><i class="fas fa-user-circle"></i> Profile</button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-username">Loading…</div>
+          <div class="user-role">PRO USER</div>
+        </div>
+        <button class="logout-btn" title="Logout" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+
+    <!-- ===== DASHBOARD PAGE ===== -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard <span class="gradient-text">Overview</span></div>
+          <div class="page-subtitle">Welcome back! Here's what's happening.</div>
+        </div>
+        <button class="btn btn-primary" onclick="navigateTo('generator')"><i class="fas fa-plus"></i><span class="btn-text">New QR Code</span></button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(0,212,255,0.1); color:var(--neon-blue)"><i class="fas fa-qrcode"></i></div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total QR Codes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(180,79,255,0.1); color:var(--neon-purple)"><i class="fas fa-download"></i></div>
+          <div class="stat-value" id="stat-downloads">0</div>
+          <div class="stat-label">Downloads</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(0,255,136,0.1); color:var(--neon-green)"><i class="fas fa-calendar-week"></i></div>
+          <div class="stat-value" id="stat-week">0</div>
+          <div class="stat-label">This Week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(255,68,170,0.1); color:var(--neon-pink)"><i class="fas fa-link"></i></div>
+          <div class="stat-value" id="stat-types">0</div>
+          <div class="stat-label">QR Types Used</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent QR Codes</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigateTo('library')">View All</button>
+        </div>
+        <div class="card-body">
+          <div class="qr-grid" id="dashboard-recent-qr"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== GENERATOR PAGE ===== -->
+    <div class="page" id="page-generator">
+      <div class="page-header">
+        <div>
+          <div class="page-title">QR <span class="gradient-text">Generator</span></div>
+          <div class="page-subtitle">Create and customize your perfect QR code</div>
+        </div>
+      </div>
+
+      <div class="generator-grid">
+        <!-- Left: Settings -->
+        <div>
+          <!-- QR Type -->
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header"><span class="card-title">Content Type</span></div>
+            <div class="card-body">
+              <div class="qr-type-grid" id="qr-type-grid">
+                <button class="qr-type-btn active" data-type="url" onclick="selectQRType(this,'url')"><i class="fas fa-link"></i>URL</button>
+                <button class="qr-type-btn" data-type="text" onclick="selectQRType(this,'text')"><i class="fas fa-font"></i>Text</button>
+                <button class="qr-type-btn" data-type="email" onclick="selectQRType(this,'email')"><i class="fas fa-envelope"></i>Email</button>
+                <button class="qr-type-btn" data-type="phone" onclick="selectQRType(this,'phone')"><i class="fas fa-phone"></i>Phone</button>
+                <button class="qr-type-btn" data-type="whatsapp" onclick="selectQRType(this,'whatsapp')"><i class="fab fa-whatsapp"></i>WhatsApp</button>
+                <button class="qr-type-btn" data-type="wifi" onclick="selectQRType(this,'wifi')"><i class="fas fa-wifi"></i>WiFi</button>
+                <button class="qr-type-btn" data-type="instagram" onclick="selectQRType(this,'instagram')"><i class="fab fa-instagram"></i>Instagram</button>
+                <button class="qr-type-btn" data-type="youtube" onclick="selectQRType(this,'youtube')"><i class="fab fa-youtube"></i>YouTube</button>
+                <button class="qr-type-btn" data-type="pdf" onclick="selectQRType(this,'pdf')"><i class="fas fa-file-pdf"></i>PDF</button>
+                <button class="qr-type-btn" data-type="vcard" onclick="selectQRType(this,'vcard')"><i class="fas fa-address-card"></i>vCard</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Input -->
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header"><span class="card-title">Content</span></div>
+            <div class="card-body">
+              <div class="input-fields" id="qr-input-fields">
+                <!-- Dynamically injected -->
+              </div>
+              <button class="btn btn-ghost" style="width:100%" onclick="generateQR()"><i class="fas fa-bolt"></i> Generate QR Code</button>
+            </div>
+          </div>
+
+          <!-- Customization -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">Customization</span></div>
+            <div class="card-body">
+              <div class="customization-grid">
+                <div>
+                  <div class="section-label">Foreground</div>
+                  <div class="color-input-wrap">
+                    <input type="color" id="fg-color" value="#000000" oninput="updateColorHex('fg')">
+                    <input type="text" class="color-hex" id="fg-hex" value="#000000" oninput="updateColorPicker('fg')">
+                  </div>
+                </div>
+                <div>
+                  <div class="section-label">Background</div>
+                  <div class="color-input-wrap">
+                    <input type="color" id="bg-color" value="#ffffff" oninput="updateColorHex('bg')">
+                    <input type="text" class="color-hex" id="bg-hex" value="#ffffff" oninput="updateColorPicker('bg')">
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-bottom:20px">
+                <div class="section-label">QR Size</div>
+                <div class="range-wrap">
+                  <input type="range" id="qr-size" min="128" max="512" value="256" oninput="this.nextElementSibling.textContent=this.value+'px'; generateQR()">
+                  <span class="range-value">256px</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="section-label">Logo Overlay</div>
+                <div class="logo-upload-area" id="logo-upload-area">
+                  <input type="file" id="logo-upload" accept="image/*" onchange="handleLogoUpload(event)">
+                  <div id="logo-upload-content">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-dim);margin-bottom:6px;display:block"></i>
+                    <span style="font-size:12px;color:var(--text-dim)">Drop or click to upload logo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Preview -->
+        <div class="qr-preview-card card">
+          <div class="card-header"><span class="card-title">Live Preview</span></div>
+          <div class="card-body">
+            <div class="qr-preview-container">
+              <div class="qr-placeholder" id="qr-placeholder">
+                <i class="fas fa-qrcode"></i>
+                <span>Enter content to generate QR code</span>
+              </div>
+              <div id="qr-output-wrapper" style="display:none">
+                <div id="qr-output"></div>
+              </div>
+            </div>
+
+            <div class="download-btns" id="download-btns" style="display:none">
+              <button class="btn btn-ghost btn-sm" onclick="downloadQR('png')"><i class="fas fa-image"></i> PNG</button>
+              <button class="btn btn-ghost btn-sm" onclick="downloadQR('jpg')"><i class="fas fa-image"></i> JPG</button>
+              <button class="btn btn-ghost btn-sm" onclick="copyQR()"><i class="fas fa-copy"></i> Copy</button>
+              <button class="btn btn-ghost btn-sm" onclick="shareQR()"><i class="fas fa-share-alt"></i> Share</button>
+            </div>
+
+            <div class="save-form" id="save-form" style="display:none">
+              <div class="save-form-title">Save to Cloud</div>
+              <div class="form-group">
+                <input type="text" id="qr-save-title" class="form-input" placeholder="QR Code Title (e.g. My Website)">
+              </div>
+              <button class="btn btn-primary" onclick="saveQRToCloud()">
+                <span class="btn-text"><i class="fas fa-cloud-upload-alt"></i> Save to Library</span>
+                <div class="spinner"></div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LIBRARY PAGE ===== -->
+    <div class="page" id="page-library">
+      <div class="page-header">
+        <div>
+          <div class="page-title">My <span class="gradient-text">Library</span></div>
+          <div class="page-subtitle">All your saved QR codes in one place</div>
+        </div>
+        <button class="btn btn-primary" onclick="navigateTo('generator')"><i class="fas fa-plus"></i><span class="btn-text">Create New</span></button>
+      </div>
+
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="search-input" id="lib-search" placeholder="Search QR codes…" oninput="filterLibrary()">
+        </div>
+        <select class="select-input" id="lib-filter-type" onchange="filterLibrary()" style="max-width:180px">
+          <option value="">All Types</option>
+          <option value="url">URL</option>
+          <option value="text">Text</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="wifi">WiFi</option>
+          <option value="instagram">Instagram</option>
+          <option value="youtube">YouTube</option>
+          <option value="pdf">PDF</option>
+          <option value="vcard">vCard</option>
+        </select>
+      </div>
+
+      <div class="qr-grid" id="library-grid"></div>
+    </div>
+
+    <!-- ===== PROFILE PAGE ===== -->
+    <div class="page" id="page-profile">
+      <div class="page-header">
+        <div>
+          <div class="page-title">My <span class="gradient-text">Profile</span></div>
+          <div class="page-subtitle">Manage your account and preferences</div>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="card">
+          <div class="profile-avatar-section">
+            <div class="profile-avatar-large" id="profile-avatar-large">?</div>
+            <div class="profile-username" id="profile-username">—</div>
+            <div class="profile-email" id="profile-email">—</div>
+            <div class="profile-badge"><i class="fas fa-star"></i> Pro User</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:20px">
+            <div class="card-header"><span class="card-title">Account Info</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Display Name</label>
+                <input type="text" id="profile-name-input" class="form-input" placeholder="Your name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" id="profile-email-input" class="form-input" disabled style="opacity:0.6; cursor:not-allowed">
+              </div>
+              <button class="btn btn-primary" onclick="updateProfile()" style="width:auto">
+                <span class="btn-text"><i class="fas fa-save"></i> Save Changes</span>
+                <div class="spinner"></div>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Change Password</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="input-with-icon">
+                  <input type="password" id="new-password" class="form-input" placeholder="Min. 6 characters">
+                  <i class="fas fa-lock input-icon"></i>
+                </div>
+              </div>
+              <button class="btn btn-ghost" onclick="updatePassword()" style="width:auto">
+                <span class="btn-text"><i class="fas fa-key"></i> Update Password</span>
+                <div class="spinner"></div>
+              </button>
+              <div class="divider"></div>
+              <button class="btn btn-danger" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== FORGOT PASSWORD MODAL ===== -->
+<div class="modal-overlay" id="forgot-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeForgotModal()"><i class="fas fa-times"></i></button>
+    <div class="modal-title">Reset Password</div>
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <div class="input-with-icon">
+        <input type="email" id="forgot-email" class="form-input" placeholder="you@example.com">
+        <i class="fas fa-envelope input-icon"></i>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="handleForgotPassword()">
+      <span class="btn-text"><i class="fas fa-paper-plane"></i> Send Reset Link</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+</div>
+
+<!-- ===== DELETE CONFIRM MODAL ===== -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDeleteModal()"><i class="fas fa-times"></i></button>
+    <div class="modal-title">Delete QR Code?</div>
+    <p style="color:var(--text-secondary); margin-bottom:24px; font-size:15px">This action cannot be undone. The QR code will be permanently deleted from your library.</p>
+    <div style="display:flex; gap:12px">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn" style="flex:1" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== EDIT MODAL ===== -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+    <div class="modal-title">Edit QR Code</div>
+    <input type="hidden" id="edit-qr-id">
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" id="edit-title" class="form-input" placeholder="QR Code Title">
+    </div>
+    <button class="btn btn-primary" onclick="saveEditQR()">
+      <span class="btn-text"><i class="fas fa-save"></i> Save Changes</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+</div>
+
+<!-- ===========================
+     JAVASCRIPT
+=========================== -->
+<script>
+// ===== SUPABASE INIT =====
+const SUPABASE_URL = "https://ygnoirnuefdgowkougiw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlnbm9pcm51ZWZkZ293a291Z2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjE5NDcsImV4cCI6MjA5NTE5Nzk0N30.1GUHqEzRKZFhOrbDjEDiKUJUPzLObmFKgy6WjtFSo6s";
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== APP STATE =====
+let currentUser = null;
+let currentQRType = 'url';
+let qrCodeInstance = null;
+let logoDataURL = null;
+let allQRCodes = [];
+let pendingDeleteId = null;
+let downloadCount = 0;
+
+// ===== INIT =====
+window.addEventListener('DOMContentLoaded', async () => {
+  // Animate loader out
+  setTimeout(async () => {
+    const loader = document.getElementById('page-loader');
+    loader.style.opacity = '0';
+    loader.style.transition = 'opacity 0.5s ease';
+    setTimeout(() => loader.remove(), 500);
+
+    // Check session
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      currentUser = session.user;
+      showApp();
+    } else {
+      document.getElementById('auth-screen').style.display = 'flex';
+    }
+  }, 1600);
+
+  // Auth state changes
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+      showApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      showAuth();
+    }
+  });
+
+  // Init QR type input
+  renderInputFields('url');
+});
+
+// ===== SHOW / HIDE =====
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  populateUserInfo();
+  loadDashboard();
+}
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+// ===== USER INFO =====
+function populateUserInfo() {
+  if (!currentUser) return;
+  const meta = currentUser.user_metadata || {};
+  const name = meta.full_name || meta.name || currentUser.email.split('@')[0];
+  const initial = name.charAt(0).toUpperCase();
+  document.getElementById('sidebar-avatar').textContent = initial;
+  document.getElementById('sidebar-username').textContent = name;
+  document.getElementById('profile-avatar-large').textContent = initial;
+  document.getElementById('profile-username').textContent = name;
+  document.getElementById('profile-email').textContent = currentUser.email;
+  document.getElementById('profile-name-input').value = name;
+  document.getElementById('profile-email-input').value = currentUser.email;
+}
+
+// ===== AUTH TABS =====
+function switchAuthTab(tab) {
+  const tabs = document.querySelectorAll('.auth-tab');
+  tabs.forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'signin')));
+  document.getElementById('signin-form').style.display = tab === 'signin' ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+}
+
+function togglePw(id, btn) {
+  const inp = document.getElementById(id);
+  const isPass = inp.type === 'password';
+  inp.type = isPass ? 'text' : 'password';
+  btn.querySelector('i').className = isPass ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+
+// ===== SIGN IN =====
+async function handleSignIn() {
+  const email = document.getElementById('signin-email').value.trim();
+  const pass = document.getElementById('signin-password').value;
+  clearErrors(['signin-email-err','signin-pass-err']);
+  if (!email) { showError('signin-email-err','Email is required'); return; }
+  if (!pass) { showError('signin-pass-err','Password is required'); return; }
+
+  setBtnLoading('signin-btn', true);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  setBtnLoading('signin-btn', false);
+  if (error) { showError('signin-pass-err', error.message); showToast(error.message, 'error'); }
+}
+
+// ===== SIGN UP =====
+async function handleSignUp() {
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pass = document.getElementById('signup-password').value;
+  clearErrors(['signup-name-err','signup-email-err','signup-pass-err']);
+  if (!name) { showError('signup-name-err','Name is required'); return; }
+  if (!email) { showError('signup-email-err','Email is required'); return; }
+  if (pass.length < 6) { showError('signup-pass-err','Password must be at least 6 characters'); return; }
+
+  setBtnLoading('signup-btn', true);
+  const { error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  setBtnLoading('signup-btn', false);
+  if (error) { showError('signup-email-err', error.message); showToast(error.message, 'error'); }
+  else { showToast('Account created! Check your email to confirm.', 'success'); }
+}
+
+// ===== LOGOUT =====
+async function handleLogout() {
+  await sb.auth.signOut();
+  showToast('Logged out successfully', 'info');
+}
+
+// ===== FORGOT PASSWORD =====
+function showForgotModal() { document.getElementById('forgot-modal').classList.add('open'); }
+function closeForgotModal() { document.getElementById('forgot-modal').classList.remove('open'); }
+async function handleForgotPassword() {
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email) { showToast('Please enter your email', 'error'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if (error) showToast(error.message, 'error');
+  else { showToast('Reset link sent! Check your inbox.', 'success'); closeForgotModal(); }
+}
+
+// ===== NAVIGATION =====
+function navigateTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.toLowerCase().includes(page.toLowerCase()) ||
+        n.getAttribute('onclick') && n.getAttribute('onclick').includes(page)) {
+      n.classList.add('active');
+    }
+  });
+  closeSidebar();
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'library') loadLibrary();
+}
+
+// ===== SIDEBAR =====
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('show');
+}
+
+// ===== QR TYPE SELECTION =====
+const QR_TYPES = {
+  url: {
+    label: 'URL',
+    fields: [{ id:'qr-url', label:'Website URL', type:'url', placeholder:'https://example.com', icon:'fa-link' }]
+  },
+  text: {
+    label: 'Text',
+    fields: [{ id:'qr-text', label:'Your Text', type:'textarea', placeholder:'Enter any text here…' }]
+  },
+  email: {
+    label: 'Email',
+    fields: [
+      { id:'qr-email', label:'Email Address', type:'email', placeholder:'email@example.com', icon:'fa-envelope' },
+      { id:'qr-email-sub', label:'Subject (optional)', type:'text', placeholder:'Hello!', icon:'fa-tag' },
+      { id:'qr-email-body', label:'Message (optional)', type:'textarea', placeholder:'Message…' }
+    ]
+  },
+  phone: {
+    label: 'Phone',
+    fields: [{ id:'qr-phone', label:'Phone Number', type:'tel', placeholder:'+1 555 000 0000', icon:'fa-phone' }]
+  },
+  whatsapp: {
+    label: 'WhatsApp',
+    fields: [
+      { id:'qr-wa-phone', label:'Phone Number (with country code)', type:'tel', placeholder:'+1234567890', icon:'fa-whatsapp' },
+      { id:'qr-wa-msg', label:'Pre-filled Message (optional)', type:'textarea', placeholder:'Hi!' }
+    ]
+  },
+  wifi: {
+    label: 'WiFi',
+    fields: [
+      { id:'qr-wifi-ssid', label:'Network Name (SSID)', type:'text', placeholder:'MyWiFiNetwork', icon:'fa-wifi' },
+      { id:'qr-wifi-pass', label:'Password', type:'text', placeholder:'password123', icon:'fa-lock' },
+      { id:'qr-wifi-enc', label:'Encryption', type:'select', options:['WPA','WEP','nopass'] }
+    ]
+  },
+  instagram: {
+    label: 'Instagram',
+    fields: [{ id:'qr-ig', label:'Instagram Username', type:'text', placeholder:'username', icon:'fa-instagram' }]
+  },
+  youtube: {
+    label: 'YouTube',
+    fields: [{ id:'qr-yt', label:'YouTube URL or Channel', type:'url', placeholder:'https://youtube.com/…', icon:'fa-youtube' }]
+  },
+  pdf: {
+    label: 'PDF Link',
+    fields: [{ id:'qr-pdf', label:'PDF URL', type:'url', placeholder:'https://example.com/file.pdf', icon:'fa-file-pdf' }]
+  },
+  vcard: {
+    label: 'vCard',
+    fields: [
+      { id:'qr-vc-name', label:'Full Name', type:'text', placeholder:'John Doe', icon:'fa-user' },
+      { id:'qr-vc-phone', label:'Phone', type:'tel', placeholder:'+1234567890', icon:'fa-phone' },
+      { id:'qr-vc-email', label:'Email', type:'email', placeholder:'john@example.com', icon:'fa-envelope' },
+      { id:'qr-vc-org', label:'Organization', type:'text', placeholder:'Acme Inc.', icon:'fa-building' },
+      { id:'qr-vc-web', label:'Website', type:'url', placeholder:'https://johndoe.com', icon:'fa-globe' }
+    ]
+  }
+};
+
+function selectQRType(btn, type) {
+  document.querySelectorAll('.qr-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentQRType = type;
+  renderInputFields(type);
+  resetPreview();
+}
+
+function renderInputFields(type) {
+  const cfg = QR_TYPES[type];
+  const container = document.getElementById('qr-input-fields');
+  container.innerHTML = cfg.fields.map(f => {
+    if (f.type === 'textarea') {
+      return `<div class="form-group">
+        <label class="form-label">${f.label}</label>
+        <textarea id="${f.id}" class="form-input" placeholder="${f.placeholder || ''}" rows="3" oninput="autoGenerate()"></textarea>
+      </div>`;
+    } else if (f.type === 'select') {
+      return `<div class="form-group">
+        <label class="form-label">${f.label}</label>
+        <select id="${f.id}" class="select-input" onchange="autoGenerate()">
+          ${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}
+        </select>
+      </div>`;
+    } else {
+      return `<div class="form-group">
+        <label class="form-label">${f.label}</label>
+        <div class="input-with-icon">
+          <input type="${f.type}" id="${f.id}" class="form-input" placeholder="${f.placeholder || ''}" oninput="autoGenerate()">
+          ${f.icon ? `<i class="fas ${f.icon} input-icon"></i>` : ''}
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+// ===== BUILD QR CONTENT =====
+function buildQRContent() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  switch(currentQRType) {
+    case 'url':    return g('qr-url') || null;
+    case 'text':   return g('qr-text') || null;
+    case 'email': {
+      const e = g('qr-email'); if (!e) return null;
+      let s = `mailto:${e}`;
+      const sub = g('qr-email-sub'), body = g('qr-email-body');
+      if (sub || body) s += '?' + [sub?`subject=${encodeURIComponent(sub)}`:'', body?`body=${encodeURIComponent(body)}`:''].filter(Boolean).join('&');
+      return s;
+    }
+    case 'phone':   return g('qr-phone') ? `tel:${g('qr-phone')}` : null;
+    case 'whatsapp': {
+      const ph = g('qr-wa-phone'); if (!ph) return null;
+      const clean = ph.replace(/\D/g,'');
+      const msg = g('qr-wa-msg');
+      return `https://wa.me/${clean}${msg ? '?text='+encodeURIComponent(msg) : ''}`;
+    }
+    case 'wifi': {
+      const ssid = g('qr-wifi-ssid'); if (!ssid) return null;
+      const pass = g('qr-wifi-pass');
+      const enc = g('qr-wifi-enc') || 'WPA';
+      return `WIFI:T:${enc};S:${ssid};P:${pass};;`;
+    }
+    case 'instagram': { const u = g('qr-ig'); return u ? `https://instagram.com/${u.replace('@','')}` : null; }
+    case 'youtube':   return g('qr-yt') || null;
+    case 'pdf':       return g('qr-pdf') || null;
+    case 'vcard': {
+      const name = g('qr-vc-name'); if (!name) return null;
+      return `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL:${g('qr-vc-phone')}\nEMAIL:${g('qr-vc-email')}\nORG:${g('qr-vc-org')}\nURL:${g('qr-vc-web')}\nEND:VCARD`;
+    }
+  }
+  return null;
+}
+
+let autoGenTimer = null;
+function autoGenerate() {
+  clearTimeout(autoGenTimer);
+  autoGenTimer = setTimeout(generateQR, 500);
+}
+
+// ===== GENERATE QR =====
+function generateQR() {
+  const content = buildQRContent();
+  if (!content) { resetPreview(); return; }
+
+  const fg = document.getElementById('fg-color').value;
+  const bg = document.getElementById('bg-color').value;
+  const size = parseInt(document.getElementById('qr-size').value);
+
+  // Clear previous
+  const output = document.getElementById('qr-output');
+  output.innerHTML = '';
+
+  // Generate with QRCode.js
+  qrCodeInstance = new QRCode(output, {
+    text: content,
+    width: size,
+    height: size,
+    colorDark: fg,
+    colorLight: bg,
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  // After render, apply logo if any
+  setTimeout(() => {
+    if (logoDataURL) overlayLogo(output, size);
+  }, 200);
+
+  document.getElementById('qr-placeholder').style.display = 'none';
+  document.getElementById('qr-output-wrapper').style.display = 'flex';
+  document.getElementById('download-btns').style.display = 'grid';
+  document.getElementById('save-form').style.display = 'block';
+}
+
+function overlayLogo(container, size) {
+  const canvas = container.querySelector('canvas');
+  if (!canvas || !logoDataURL) return;
+  const ctx = canvas.getContext('2d');
+  const logo = new Image();
+  logo.onload = () => {
+    const logoSize = size * 0.22;
+    const x = (size - logoSize) / 2;
+    const y = (size - logoSize) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x - 4, y - 4, logoSize + 8, logoSize + 8, 8);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.drawImage(logo, x, y, logoSize, logoSize);
+    ctx.restore();
+  };
+  logo.src = logoDataURL;
+}
+
+function resetPreview() {
+  document.getElementById('qr-placeholder').style.display = 'flex';
+  document.getElementById('qr-output-wrapper').style.display = 'none';
+  document.getElementById('qr-output').innerHTML = '';
+  document.getElementById('download-btns').style.display = 'none';
+  document.getElementById('save-form').style.display = 'none';
+}
+
+// ===== COLOR SYNC =====
+function updateColorHex(type) {
+  const col = document.getElementById(`${type}-color`).value;
+  document.getElementById(`${type}-hex`).value = col;
+  autoGenerate();
+}
+function updateColorPicker(type) {
+  const hex = document.getElementById(`${type}-hex`).value;
+  if (/^#[0-9a-f]{6}$/i.test(hex)) {
+    document.getElementById(`${type}-color`).value = hex;
+    autoGenerate();
+  }
+}
+
+// ===== LOGO UPLOAD =====
+function handleLogoUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    logoDataURL = ev.target.result;
+    document.getElementById('logo-upload-content').innerHTML = `<img src="${logoDataURL}" class="logo-preview"><br><span style="font-size:11px;color:var(--text-dim)">Click to change</span>`;
+    generateQR();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== DOWNLOAD =====
+function getQRCanvas() {
+  return document.querySelector('#qr-output canvas');
+}
+
+function downloadQR(format) {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR code first', 'error'); return; }
+  downloadCount++;
+
+  if (format === 'png' || format === 'jpg') {
+    const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    const url = canvas.toDataURL(mime, 1.0);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qrforge-${currentQRType}-${Date.now()}.${format}`;
+    a.click();
+    showToast(`Downloaded as ${format.toUpperCase()}`, 'success');
+  }
+}
+
+function copyQR() {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR code first', 'error'); return; }
+  canvas.toBlob(blob => {
+    navigator.clipboard.write([new ClipboardItem({'image/png': blob})]).then(() => {
+      showToast('QR code copied to clipboard!', 'success');
+    }).catch(() => showToast('Copy not supported in this browser', 'error'));
+  });
+}
+
+function shareQR() {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR code first', 'error'); return; }
+  canvas.toBlob(async blob => {
+    const file = new File([blob], 'qrforge.png', { type: 'image/png' });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: 'QR Code', files: [file] });
+    } else {
+      const url = canvas.toDataURL('image/png');
+      const w = window.open();
+      w.document.write(`<img src="${url}" style="max-width:100%">`);
+      showToast('QR code opened in new tab', 'info');
+    }
+  });
+}
+
+// ===== SAVE TO CLOUD =====
+async function saveQRToCloud() {
+  const canvas = getQRCanvas();
+  if (!canvas) { showToast('Generate a QR code first', 'error'); return; }
+
+  const title = document.getElementById('qr-save-title').value.trim() || `QR Code ${Date.now()}`;
+  const content = buildQRContent();
+  const fg = document.getElementById('fg-color').value;
+  const bg = document.getElementById('bg-color').value;
+
+  const btn = document.querySelector('#save-form .btn');
+  setBtnLoading(btn, true);
+
+  try {
+    const imageDataUrl = canvas.toDataURL('image/png');
+
+    const { error } = await sb.from('qr_codes').insert({
+      user_id: currentUser.id,
+      title,
+      qr_text: content,
+      qr_type: currentQRType,
+      foreground_color: fg,
+      background_color: bg,
+      qr_image_url: imageDataUrl,
+      created_at: new Date().toISOString()
+    });
+
+    setBtnLoading(btn, false);
+    if (error) { showToast(error.message, 'error'); return; }
+    showToast('QR code saved to library!', 'success');
+    document.getElementById('qr-save-title').value = '';
+    loadDashboard();
+  } catch(e) {
+    setBtnLoading(btn, false);
+    showToast('Failed to save: ' + e.message, 'error');
+  }
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  if (!currentUser) return;
+  const { data, error } = await sb.from('qr_codes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  allQRCodes = data || [];
+
+  // Stats
+  const now = new Date();
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const thisWeek = allQRCodes.filter(q => new Date(q.created_at) >= weekAgo).length;
+  const types = [...new Set(allQRCodes.map(q => q.qr_type))].length;
+
+  document.getElementById('stat-total').textContent = allQRCodes.length;
+  document.getElementById('stat-downloads').textContent = downloadCount;
+  document.getElementById('stat-week').textContent = thisWeek;
+  document.getElementById('stat-types').textContent = types;
+
+  // Recent (5)
+  const recent = allQRCodes.slice(0, 5);
+  renderQRGrid('dashboard-recent-qr', recent, true);
+}
+
+// ===== LIBRARY =====
+async function loadLibrary() {
+  if (!currentUser) return;
+  const { data, error } = await sb.from('qr_codes').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { showToast('Failed to load library', 'error'); return; }
+  allQRCodes = data || [];
+  renderQRGrid('library-grid', allQRCodes, false);
+}
+
+function filterLibrary() {
+  const q = document.getElementById('lib-search').value.toLowerCase();
+  const type = document.getElementById('lib-filter-type').value;
+  let filtered = allQRCodes;
+  if (q) filtered = filtered.filter(c => (c.title||'').toLowerCase().includes(q) || (c.qr_text||'').toLowerCase().includes(q));
+  if (type) filtered = filtered.filter(c => c.qr_type === type);
+  renderQRGrid('library-grid', filtered, false);
+}
+
+// ===== RENDER QR GRID =====
+function renderQRGrid(containerId, items, compact) {
+  const container = document.getElementById(containerId);
+  if (!items || items.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <i class="fas fa-qrcode"></i>
+      <h3>No QR Codes Yet</h3>
+      <p>Create your first QR code to see it here.</p>
+    </div>`;
+    return;
+  }
+  container.innerHTML = items.map(item => {
+    const date = new Date(item.created_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+    const imgSrc = item.qr_image_url || '';
+    return `<div class="qr-item" id="qr-item-${item.id}">
+      <div class="qr-item-preview">
+        ${imgSrc ? `<img src="${imgSrc}" alt="${item.title||'QR'}">` : '<i class="fas fa-qrcode" style="font-size:48px;color:var(--text-dim)"></i>'}
+      </div>
+      <div class="qr-item-body">
+        <div class="qr-item-title">${escapeHtml(item.title || 'Untitled')}</div>
+        <div class="qr-item-meta">${escapeHtml((item.qr_text||'').substring(0,40))}${(item.qr_text||'').length>40?'…':''}</div>
+        <div class="qr-item-type">${item.qr_type || 'url'}</div>
+        <div class="qr-item-actions">
+          ${imgSrc ? `<button class="btn btn-icon btn-sm" title="Download" onclick="downloadFromURL('${item.id}')"><i class="fas fa-download"></i></button>` : ''}
+          <button class="btn btn-icon btn-sm" title="Edit" onclick="openEditModal('${item.id}','${escapeHtml(item.title||'')}')"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-icon btn-sm" style="color:#ff6b6b;border-color:rgba(255,107,107,0.2)" title="Delete" onclick="openDeleteModal('${item.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== DOWNLOAD FROM SAVED =====
+function downloadFromURL(id) {
+  const item = allQRCodes.find(q => q.id === id);
+  if (!item || !item.qr_image_url) { showToast('No image available', 'error'); return; }
+  downloadCount++;
+  const a = document.createElement('a');
+  a.href = item.qr_image_url;
+  a.download = `${item.title || 'qrforge'}.png`;
+  a.click();
+  showToast('Downloaded!', 'success');
+}
+
+// ===== EDIT =====
+function openEditModal(id, title) {
+  document.getElementById('edit-qr-id').value = id;
+  document.getElementById('edit-title').value = title;
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+async function saveEditQR() {
+  const id = document.getElementById('edit-qr-id').value;
+  const title = document.getElementById('edit-title').value.trim();
+  if (!title) { showToast('Title cannot be empty', 'error'); return; }
+
+  const { error } = await sb.from('qr_codes').update({ title }).eq('id', id).eq('user_id', currentUser.id);
+  if (error) { showToast(error.message, 'error'); return; }
+
+  // Update local
+  const idx = allQRCodes.findIndex(q => q.id === id);
+  if (idx > -1) allQRCodes[idx].title = title;
+  closeEditModal();
+  showToast('QR code updated!', 'success');
+  loadLibrary();
+  loadDashboard();
+}
+
+// ===== DELETE =====
+function openDeleteModal(id) {
+  pendingDeleteId = id;
+  document.getElementById('delete-modal').classList.add('open');
+}
+function closeDeleteModal() {
+  pendingDeleteId = null;
+  document.getElementById('delete-modal').classList.remove('open');
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  const { error } = await sb.from('qr_codes').delete().eq('id', pendingDeleteId).eq('user_id', currentUser.id);
+  if (error) { showToast(error.message, 'error'); return; }
+  allQRCodes = allQRCodes.filter(q => q.id !== pendingDeleteId);
+  closeDeleteModal();
+  showToast('QR code deleted', 'info');
+  loadLibrary();
+  loadDashboard();
+}
+
+// ===== PROFILE =====
+async function updateProfile() {
+  const name = document.getElementById('profile-name-input').value.trim();
+  const { error } = await sb.auth.updateUser({ data: { full_name: name } });
+  if (error) showToast(error.message, 'error');
+  else { showToast('Profile updated!', 'success'); populateUserInfo(); }
+}
+
+async function updatePassword() {
+  const pass = document.getElementById('new-password').value;
+  if (pass.length < 6) { showToast('Password must be at least 6 characters', 'error'); return; }
+  const { error } = await sb.auth.updateUser({ password: pass });
+  if (error) showToast(error.message, 'error');
+  else { showToast('Password updated successfully!', 'success'); document.getElementById('new-password').value = ''; }
+}
+
+// ===== UTILITY =====
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+function clearErrors(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.classList.remove('show'); }
+  });
+}
+
+function setBtnLoading(btn, loading) {
+  if (typeof btn === 'string') btn = document.getElementById(btn);
+  if (!btn) return;
+  btn.classList.toggle('loading', loading);
+  btn.disabled = loading;
+}
+
+function showToast(msg, type = 'info') {
+  const icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<i class="fas ${icons[type]}"></i><span>${escapeHtml(msg)}</span>`;
+  const container = document.getElementById('toast-container');
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3100);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateQR();
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveQRToCloud(); }
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+// ===== DRAG & DROP LOGO =====
+const uploadArea = document.getElementById('logo-upload-area');
+if (uploadArea) {
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        logoDataURL = ev.target.result;
+        document.getElementById('logo-upload-content').innerHTML = `<img src="${logoDataURL}" class="logo-preview"><br><span style="font-size:11px;color:var(--text-dim)">Drop new to replace</span>`;
+        generateQR();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+</script>
+</body>
+</html>
